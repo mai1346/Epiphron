@@ -4,8 +4,7 @@ Created on Fri May 18 21:24:46 2018
 
 @author: mai1346
 """
-import queue
-import datetime
+
 from Event import FillEvent, OrderEvent
 from abc import ABC, abstractmethod
 
@@ -43,7 +42,7 @@ class SimulatedExecutionHandler(ExecutionHandler):
     handler.
     """
     
-    def __init__(self, events):
+    def __init__(self, events, data_handler):
         """
         Initialises the handler, setting the event queues
         up internally.
@@ -52,7 +51,7 @@ class SimulatedExecutionHandler(ExecutionHandler):
         events - The Queue of Event objects.
         """
         self.events = events
-
+        self.data_handler = data_handler
 
     def execute_order(self, orderevent):
         """
@@ -64,7 +63,8 @@ class SimulatedExecutionHandler(ExecutionHandler):
         """
         if orderevent.type == 'ORDER':
             fill_event = FillEvent(
-                datetime.datetime.utcnow(), orderevent.symbol,
-                'ARCA', orderevent.quantity,orderevent.direction, None
-            )
+                                    orderevent.datetime, orderevent.symbol,
+                                    'Test_Exchange', orderevent.quantity, orderevent.direction, orderevent.order_type, 
+                                    self.data_handler.get_latest_bars_values(orderevent.symbol, "close")[0] # [0] because it's a np array
+                                    )
             self.events.put(fill_event)

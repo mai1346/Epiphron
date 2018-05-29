@@ -39,7 +39,7 @@ class OrderEvent(Event):
     quantity and a direction.
     """
 
-    def __init__(self, symbol, order_type, quantity, direction):
+    def __init__(self, datetime, symbol, order_type, quantity, direction):
         """
         Initialises the order type, setting whether it is
         a Market order ('MKT') or Limit order ('LMT'), has
@@ -51,11 +51,12 @@ class OrderEvent(Event):
 
         Parameters:
         symbol - The instrument to trade.
-        order_type - 'MKT' or 'LMT' for Market or Limit.
+        order_type - 'LONG', 'SHORT' and 'EXIT'.
         quantity - Non-negative integer for quantity.
         direction - 'BUY' or 'SELL' for long or short.
         """
         self.type = 'ORDER'
+        self.datetime = datetime
         self.symbol = symbol
         self.order_type = order_type
         self.quantity = quantity
@@ -71,8 +72,8 @@ class OrderEvent(Event):
             )
 
 class FillEvent(Event):
-    def __init__(self, timeindex, symbol, exchange, quantity, 
-                 direction, fill_cost, commission=None):
+    def __init__(self, datetime, symbol, exchange, quantity, 
+                 direction, fill_type, fill_cost, commission=None):
         """
         Initialises the FillEvent object. Sets the symbol, exchange,
         quantity, direction, cost of fill and an optional 
@@ -88,15 +89,17 @@ class FillEvent(Event):
         exchange - The exchange where the order was filled.
         quantity - The filled quantity.
         direction - The direction of fill ('BUY' or 'SELL')
+        fill_type - 'LONG', 'SHORT' and 'EXIT'.
         fill_cost - The holdings value in dollars.
         commission - An optional commission sent from IB.
         """
         self.type = 'FILL'
-        self.timeindex = timeindex
+        self.datetime = datetime
         self.symbol = symbol
         self.exchange = exchange
         self.quantity = quantity
         self.direction = direction
+        self.fill_type = fill_type
         self.fill_cost = fill_cost
 
         # Calculate commission

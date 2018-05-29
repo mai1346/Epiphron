@@ -21,7 +21,7 @@ class Backtest(object):
     def __init__(
         self, login_info, symbol_list, initial_capital,
         heartbeat, start_date, data_handler, 
-        execution_handler, portfolio, strategy
+        execution_handler, portfolio, risk_manager,strategy
     ):
         """
         Initialises the backtest.
@@ -46,6 +46,7 @@ class Backtest(object):
         self.execution_handler_cls = execution_handler
         self.portfolio_cls = portfolio
         self.strategy_cls = strategy
+        self.risk_manager_cls = risk_manager
 
         self.events = queue.Queue()
         
@@ -53,7 +54,6 @@ class Backtest(object):
         self.orders = 0
         self.fills = 0
         self.num_strats = 1
-        self.signal_list = []
        
         self._generate_trading_instances()
 
@@ -71,7 +71,8 @@ class Backtest(object):
         self.strategy = self.strategy_cls(self.data_handler, self.events)
         self.portfolio = self.portfolio_cls(self.data_handler, self.events, self.start_date, 
                                             self.initial_capital)
-        self.execution_handler = self.execution_handler_cls(self.events)
+        self.execution_handler = self.execution_handler_cls(self.events, self.data_handler)
+        self.risk_manager = self.risk_manager_cls(self.events, self.portfolio)
 
     def _run_backtest(self):
         """
@@ -96,14 +97,12 @@ class Backtest(object):
                 else:
                     if event is not None:
                         if event.type == 'MARKET':
-#                            print('a market event occured')
                             self.strategy.generate_signal(event)
                             self.portfolio.update_timeindex()
 
                         elif event.type == 'SIGNAL':
                             self.signals += 1                            
-                            self.portfolio.update_signal(event)
-                            self.signal_list.append([event.datetime, event.symbol, event.signal_type])
+                            self.risk_manager.update_signal(event)
 
                         elif event.type == 'ORDER':
                             self.orders += 1
@@ -131,7 +130,8 @@ class Backtest(object):
         print("Signals: %s" % self.signals)
         print("Orders: %s" % self.orders)
         print("Fills: %s" % self.fills)
-        print(pd.DataFrame(self.signal_list))
+        for tradelog in self.portfolio.Tradelog.get_Tradelog():
+            print (tradelog)
 
     def simulate_trading(self):
         """

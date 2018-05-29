@@ -5,9 +5,9 @@ Created on Sat May 19 14:20:16 2018
 @author: mai1346
 """
 import datetime
-import numpy as np
+#import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 from Backtest import Backtest
 from Data import HistoricSQLDataHandler
@@ -15,6 +15,7 @@ from Event import SignalEvent
 from Execution import SimulatedExecutionHandler
 from Portfolio import Portfolio
 from Strategy import Strategy
+from RiskManager import RiskManager
 
 class EMACrossStrategy(Strategy):
 
@@ -83,7 +84,7 @@ class EMACrossStrategy(Strategy):
 
 if __name__ == "__main__":
     login_info = {'username':'stockuser','password':'87566766','host':'localhost','db':'cnstock'}
-    symbol_list = ['600050','600066','600009']
+    symbol_list = ['600050']
     initial_capital = 100000.0
     start_date = datetime.datetime(2015,1,1,0,0,0)
     heartbeat = 0.0
@@ -96,6 +97,7 @@ if __name__ == "__main__":
                         HistoricSQLDataHandler,
                         SimulatedExecutionHandler,
                         Portfolio,
+                        RiskManager,
                         EMACrossStrategy)
 
     backtest.simulate_trading()
