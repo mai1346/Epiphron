@@ -5,7 +5,7 @@ Created on Fri May 18 21:24:46 2018
 @author: mai1346
 """
 
-from Event import FillEvent, OrderEvent
+from Event import FillEvent
 from abc import ABC, abstractmethod
 
 class ExecutionHandler(ABC):

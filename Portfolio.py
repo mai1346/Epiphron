@@ -179,5 +179,4 @@ class Portfolio(object):
             holdings['total'] += market_value
 
         # Append the current holdings
-
         self.all_holdings.append(holdings)

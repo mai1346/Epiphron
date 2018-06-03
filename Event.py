@@ -6,55 +6,49 @@ Created on Thu May 17 15:25:42 2018
 """
 
 class Event(object):
+    '''
+    本类为所有事件的父类。
+    '''
     pass
 
 class MarketEvent(Event):
+    '''
+    本类为 Market 事件，由Data类产生。在回测平台中表现为从数据源读取的单个时间间隔（time step）
+    的资产价格信息。
+    Strategy类接收 Market 事件。
+    '''
     def __init__(self):
         self.type = 'MARKET'
         
 class SignalEvent(Event):
-    def __init__(self, strategy_id, symbol, datetime, signal_type, strength):
-        """
-        Initialises the SignalEvent.
-    
-        Parameters:
-        strategy_id - The unique ID of the strategy sending the signal.
-        symbol - The ticker symbol, e.g. 'GOOG'.
-        datetime - The timestamp at which the signal was generated.
-        signal_type - 'LONG' or 'SHORT'.
-        strength - An adjustment factor "suggestion" used to scale 
-        quantity at the portfolio level. Useful for pairs strategies.
-        """
-#        self.strategy_id = strategy_id
+    '''
+    本类为 Signal 事件，由 Strategy 类产生。表现为是否做多、做空或者平仓。
+    RiskManager 类接收 Signal 事件。
+    '''
+    def __init__(self, symbol, datetime, signal_type):
+        '''
+        symbol - 交易标的
+        datetime - Signal 产生的时间
+        signal_type - 'LONG'、'SHORT'.
+        '''
+
         self.type = 'SIGNAL'
         self.symbol = symbol
         self.datetime = datetime
         self.signal_type = signal_type
-        self.strength = strength
+
 
 class OrderEvent(Event):
-    """
-    Handles the event of sending an Order to an execution system.
-    The order contains a symbol (e.g. GOOG), a type (market or limit),
-    quantity and a direction.
-    """
-
+    '''
+    本类为Order事件，由 RiskManager 类产生，RiskManager类通过筛选和判断发出Order事件。
+    Execution 类接收 Order 事件。
+    '''
     def __init__(self, datetime, symbol, order_type, quantity, direction):
-        """
-        Initialises the order type, setting whether it is
-        a Market order ('MKT') or Limit order ('LMT'), has
-        a quantity (integral) and its direction ('BUY' or
-        'SELL').
-
-        TODO: Must handle error checking here to obtain 
-        rational orders (i.e. no negative quantities etc).
-
-        Parameters:
-        symbol - The instrument to trade.
-        order_type - 'LONG', 'SHORT' and 'EXIT'.
-        quantity - Non-negative integer for quantity.
-        direction - 'BUY' or 'SELL' for long or short.
-        """
+        '''       
+        symbol - 交易标的.
+        order_type - 'LONG', 'SHORT' 或者 'EXIT'.
+        direction - 'BUY'、'SELL'
+        '''
         self.type = 'ORDER'
         self.datetime = datetime
         self.symbol = symbol
@@ -62,37 +56,23 @@ class OrderEvent(Event):
         self.quantity = quantity
         self.direction = direction
 
-    def print_order(self):
-        """
-        Outputs the values within the Order.
-        """
-        print(
-            "Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" % 
-            (self.symbol, self.order_type, self.quantity, self.direction)
-            )
-
 class FillEvent(Event):
+    '''
+    本类为 Fill 事件，由 Execution 类产生，Execution 类模拟交易的结果并产生 Fill 事件。
+    Portfolio 类接收 Fill 事件。
+    '''
     def __init__(self, datetime, symbol, exchange, quantity, 
-                 direction, fill_type, fill_cost, commission=None):
-        """
-        Initialises the FillEvent object. Sets the symbol, exchange,
-        quantity, direction, cost of fill and an optional 
-        commission.
+                 direction, fill_type, fill_cost, commission = None):
+        '''
 
-        If commission is not provided, the Fill object will
-        calculate it based on the trade size and Interactive
-        Brokers fees.
-
-        Parameters:
-        timeindex - The bar-resolution when the order was filled.
-        symbol - The instrument which was filled.
-        exchange - The exchange where the order was filled.
-        quantity - The filled quantity.
-        direction - The direction of fill ('BUY' or 'SELL')
-        fill_type - 'LONG', 'SHORT' and 'EXIT'.
-        fill_cost - The holdings value in dollars.
-        commission - An optional commission sent from IB.
-        """
+        datetime - Fill 的时间
+        symbol - 交易标的
+        exchange - 交易发生的交易所
+        direction - 'BUY'、'SELL')
+        fill_type - 'LONG', 'SHORT' 或 'EXIT'.
+        fill_cost - 标的完成交易的价格
+        commission - 手续费
+        '''
         self.type = 'FILL'
         self.datetime = datetime
         self.symbol = symbol

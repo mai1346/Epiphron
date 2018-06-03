@@ -6,11 +6,11 @@ Created on Fri May 18 21:41:19 2018
 """
 
 import datetime
-import pprint
 import queue
 import time
 import pandas as pd
 import Performance as pf
+import Plot
 
 class Backtest(object):
     """
@@ -19,10 +19,10 @@ class Backtest(object):
     """
 
     def __init__(
-        self, login_info, symbol_list, initial_capital,
-        heartbeat, start_date, data_handler, 
-        execution_handler, portfolio, risk_manager,strategy
-    ):
+        self, symbol_list, initial_capital,
+        heartbeat, start_date, end_date, data_handler, 
+        execution_handler, portfolio, risk_manager, strategy, benchmark
+        ):
         """
         Initialises the backtest.
 
@@ -36,11 +36,12 @@ class Backtest(object):
         portfolio - (Class) Keeps track of portfolio current and prior positions.
         strategy - (Class) Generates signals based on market data.
         """
-        self.login_info = login_info
         self.symbol_list = symbol_list
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
         self.start_date = start_date
+        self.end_date = end_date
+        self.benchmark = benchmark
 
         self.data_handler_cls = data_handler
         self.execution_handler_cls = execution_handler
@@ -65,9 +66,8 @@ class Backtest(object):
         print(
             "Creating DataHandler, Strategy, Portfolio and ExecutionHandler"
         )
-        self.data_handler = self.data_handler_cls(self.events, self.login_info, 
-                                                  self.symbol_list, self.start_date
-                                                  )
+        self.data_handler = self.data_handler_cls(self.events, self.symbol_list, self.start_date,
+                                                  self.end_date)
         self.strategy = self.strategy_cls(self.data_handler, self.events)
         self.portfolio = self.portfolio_cls(self.data_handler, self.events, self.start_date, 
                                             self.initial_capital)
@@ -78,60 +78,61 @@ class Backtest(object):
         """
         Executes the backtest.
         """
-        i = 0
+            # Handle the events
         while True:
-            i += 1
-#            print(i)
-            # Update the market bars
-            if self.data_handler.continue_backtest == True:
+            try:
+                event = self.events.get(False)
+            except queue.Empty:                
                 self.data_handler.update_bars()
             else:
-                break
+                if not self.data_handler.continue_backtest:
+                    break                
+                elif event is not None:
+                    if event.type == 'MARKET':
+                        self.strategy.generate_signal(event)
+                        self.portfolio.update_timeindex()
+                    elif event.type == 'SIGNAL':
+                        self.signals += 1                            
+                        self.risk_manager.update_signal(event)
 
-            # Handle the events
-            while True:
-                try:
-                    event = self.events.get(False)
-                except queue.Empty:
-                    break
-                else:
-                    if event is not None:
-                        if event.type == 'MARKET':
-                            self.strategy.generate_signal(event)
-                            self.portfolio.update_timeindex()
+                    elif event.type == 'ORDER':
+                        self.orders += 1
+                        self.execution_handler.execute_order(event)
 
-                        elif event.type == 'SIGNAL':
-                            self.signals += 1                            
-                            self.risk_manager.update_signal(event)
+                    elif event.type == 'FILL':
+                        self.fills += 1
+                        self.portfolio.update_fill(event)
+                
 
-                        elif event.type == 'ORDER':
-                            self.orders += 1
-                            self.execution_handler.execute_order(event)
 
-                        elif event.type == 'FILL':
-                            self.fills += 1
-                            self.portfolio.update_fill(event)
-
-            time.sleep(self.heartbeat)
+        time.sleep(self.heartbeat)
 
     def _output_performance(self):
         """
         Outputs the strategy performance from the backtest.
         """
         df= pf.create_equity_curve_dataframe(self.portfolio.all_holdings)
+        print (df.tail(10))
+        bench = pf.benchmark_dataframe(self.benchmark, self.start_date, self.end_date)
+        print ("Creating summary stats...")
+        stats, strategy_drawdown, bench_drawdown = pf.output_summary_stats(df, bench)
         
-        print("Creating summary stats...")
-        stats = pf.output_summary_stats(df)
-        
-        print("Creating equity curve...")
-        print(df.tail(10))
-        pprint.pprint(stats)
+        output_df = pd.DataFrame({'strategy_equity':df['equity_curve'], 'bench_equity':bench['bench_curve'],
+                                  'strategy_drawdown':strategy_drawdown, 'bench_drawdown':bench_drawdown}
+                                )
+        output_df.fillna(method = 'ffill', inplace = True)
 
-        print("Signals: %s" % self.signals)
-        print("Orders: %s" % self.orders)
-        print("Fills: %s" % self.fills)
-        for tradelog in self.portfolio.Tradelog.get_Tradelog():
-            print (tradelog)
+        print ("Creating equity curve...")
+        print (Plot.plot_equity_performance(output_df))
+        print (stats)
+        print ("Signals: %s" % self.signals)
+        print ("Orders: %s" % self.orders)
+        print ("Fills: %s" % self.fills)
+        
+        print ("Creating trade statistic")
+        trade_log = self.portfolio.Tradelog        
+        trade_log.create_trade_summary()
+        print (Plot.plot_trade(trade_log.get_Tradelog(), self.data_handler.symbol_data))
 
     def simulate_trading(self):
         """

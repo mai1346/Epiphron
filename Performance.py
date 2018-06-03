@@ -7,8 +7,10 @@ Created on Fri May 18 11:42:21 2018
 
 import numpy as np
 import pandas as pd
+import tushare as ts
 
-def calSharpe(returns, periods=252):
+
+def calSharpe(returns, risk_free = 0, periods = 252):
     """
     Create the Sharpe ratio for the strategy, based on a 
     benchmark of zero (i.e. no risk-free rate information).
@@ -19,7 +21,14 @@ def calSharpe(returns, periods=252):
     returns:
         the sharpe ratio based on period chosen
     """
-    return np.sqrt(periods) * returns.mean() / returns.std()
+    return (periods * returns.mean() - risk_free) / (returns.std() * np.sqrt(periods))
+
+def calSortino(returns, risk_free = 0, periods = 252):
+    '''
+    '''
+    deviation = returns[returns < 0].std()
+    return (periods * returns.mean() - risk_free) / (deviation * np.sqrt(periods))
+    
 
 def calDrawdown(equity):
     """
@@ -40,31 +49,69 @@ def calDrawdown(equity):
 
 def create_equity_curve_dataframe(all_holdings):
     """
-	Creates a pandas DataFrame from the all_holdings
-	list of dictionaries.
-	"""
-    curve = pd.DataFrame(all_holdings)
-    curve.set_index('datetime', inplace=True)
-    curve['returns'] = curve['total'].pct_change()
-    curve['equity_curve'] = (1.0 + curve['returns']).cumprod()
-    return curve
-
-
-def output_summary_stats(curve):
+    Creates a pandas DataFrame from the all_holdings
+    list of dictionaries.
     """
-	Creates a list of summary statistics for the portfolio.
-	"""
-    total_return = curve['equity_curve'].iloc[-1]
-    returns = curve['returns']
-    equity = curve['equity_curve']
-    equity.plot(figsize=(16, 9))
+    df = pd.DataFrame(all_holdings)
+    df.set_index('datetime', inplace=True)
+    df['equity_returns'] = df['total'].pct_change()
+    df['equity_curve'] = (1.0 + df['equity_returns']).cumprod()
+    return df
 
-    sharpe_ratio = calSharpe(returns, periods=252)
-    drawdown, max_dd = calDrawdown(equity)
-    curve['drawdown'] = drawdown
+def benchmark_dataframe(symbol, start, end):
+    '''
+    '''    
+#    if benchtype == 'BuyAndHold':
+#        bench_dict = {}
+#        for symbol in symbol_list:
+#            bench_dict[symbol] = ts.get_k_data(symbol,start)
+#            bench_dict[symbol]['date'] = pd.to_datetime(bench_dict[symbol]['date'])
+#            bench_dict[symbol].set_index('date', inplace = True)
+#        bench = sum([bench_dict[symbol]['close'] for symbol in symbol_list])
+        # 
+    start = start.strftime('%Y-%m-%d')
+    end = end.strftime('%Y-%m-%d')
+    bench = ts.get_k_data(symbol, start, end)
+    bench['date'] = pd.to_datetime(bench['date'])
+    bench.set_index('date', inplace = True)
+    bench['bench_returns'] = bench['close'].pct_change()
+    bench['bench_curve'] = (1.0 + bench['bench_returns']).cumprod()
+    
+    return bench[['bench_returns','bench_curve']]
 
-    stats = [("Total Return", "%0.2f%%" % ((total_return - 1.0) * 100.0)),
-             ("Sharpe Ratio", "%0.2f" % sharpe_ratio),
-             ("Max Drawdown", "%0.2f%%" % (max_dd * 100.0))]
+def output_summary_stats(df, bench):
+    """
+	 Creates a list of summary statistics for the portfolio.
+	 """
+    strategy_total_return = df['equity_curve'].iloc[-1]
+    strategy_returns = df['equity_returns']
+    strategy_equity = df['equity_curve']
+    strategy_sharpe_ratio = calSharpe(strategy_returns)
+    strategy_sortino = calSortino(strategy_returns)
+    strategy_drawdown, strategy_max_dd = calDrawdown(strategy_equity)
+    
+    bench_total_return = bench['bench_curve'].iloc[-1]
+    bench_returns = bench['bench_returns']
+    bench_equity = bench['bench_curve']
+    bench_sharpe_ratio = calSharpe(bench_returns)
+    bench_sortino = calSortino(bench_returns)
+    bench_drawdown, bench_max_dd = calDrawdown(bench_equity)
 
-    return stats
+
+
+    stats = "Strategy Total Return: %0.4f%%" \
+            "\nStrategy Sharpe Ratio: %0.4f" \
+            "\nStrategy Sortino Ratio: %0.4f" \
+            "\nStrategy Max Drawdown: %0.4f%%" \
+            "\nBenchmark Total Return: %0.4f%%" \
+            "\nBenchmark Sharpe Ratio: %0.4f" \
+            "\nBenchmark Sortino Ratio: %0.4f" \
+            "\nBenchmark Max Drawdown: %0.4f%%" % \
+            ((strategy_total_return - 1.0) * 100, strategy_sharpe_ratio, strategy_sortino, strategy_max_dd * 100.0,
+             (bench_total_return - 1.0) * 100, bench_sharpe_ratio, bench_sortino, bench_max_dd * 100.0)
+
+    return stats, strategy_drawdown, bench_drawdown
+
+
+            
+        

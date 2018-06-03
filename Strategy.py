@@ -4,12 +4,8 @@ Created on Fri May 18 11:35:04 2018
 
 @author: mai1346
 """
-import queue
-import numpy as np
-import pandas as pd
 
 from abc import ABC, abstractmethod
-from Event import SignalEvent
 
 class Strategy(ABC):
     """
@@ -32,3 +28,4 @@ class Strategy(ABC):
         """
         raise NotImplementedError("Should implement calculate_signals()")
 
+        
