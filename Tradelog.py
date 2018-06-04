@@ -6,6 +6,7 @@ Created on Tue May 29 14:29:09 2018
 """
 import pandas as pd
 from collections import defaultdict
+pd.set_option('expand_frame_repr', False)
 
 class Tradelog():
     '''
