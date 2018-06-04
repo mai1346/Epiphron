@@ -27,37 +27,31 @@ class DataHandler(ABC):
 
     @abstractmethod
     def get_latest_bar_datetime(self, symbol):
-        """
-        Returns a Python datetime object for the last bar.
-        """
+        '''
+        返回最新的时间戳
+        '''
         raise NotImplementedError("Should implement get_latest_bar_datetime()")
 
     @abstractmethod
     def get_latest_bars_values(self, symbol, val_type, N=1):
-        """
-        Returns the last N bar values from the 
-        latest_symbol list, or N-k if less available.
-        :rtype: object
-        """
+        '''
+        返回最新的bars value，比如open，close，high，low等
+        '''
         raise NotImplementedError("Should implement get_latest_bars_values()")
 
     @abstractmethod
     def update_bars(self):
-        """
-        Pushes the latest bars to the bars_queue for each symbol
-        in a tuple OHLCVI format: (datetime, open, high, low, 
-        close, volume, open interest).
-        """
+        '''
+        生成Market事件。
+        '''
         raise NotImplementedError("Should implement update_bars()")
         
 class HistoricSQLDataHandler(DataHandler):
+    '''
+    本类从已有的MySQL database中获取数据，用于生成market 事件。
+    '''
     def __init__(self, events, symbol_list, start_date, end_date):
-        """
-        args:
-            events - The Event Queue.
-            csv_dir - Absolute directory path to the CSV files.
-            symbol_list - A list of symbol strings.
-        """
+
         self.events = events
         self.login_info = {'username':'stockuser','password':'87566766',\
                            'host':'localhost','db':'cnstock'}
@@ -66,32 +60,23 @@ class HistoricSQLDataHandler(DataHandler):
         self.end_date = end_date
         self.symbol_list = symbol_list
         self.symbol_data = {}
-        self.symbol_data_gen = {}
         self.latest_symbol_data = {}
         self.continue_backtest = True       
-#        self.bar_index = 0
         
         self._loaddata()
 
     def _connection(self, **login):
-        """Generate connection to a database using information provided
-        args:
-            username: MySQL username
-            password: password
-            host: host address
-            db: name of the database
-        return:
-            a sqlalchemy engine connection
-        """
+        '''
+        建立数据库连接。
+        '''
         engine=sqla.create_engine('mysql://%s:%s@%s/%s?charset=utf8' % 
                                  (login['username'],login['password'],login['host'],login['db']))
         return engine
     
     def _loaddata(self):
-        """
-        Load MySQL data and store it to self.symbol_data with symbol as key and corresponding
-        dataframe as value.
-        """
+        '''
+        载入数据库数据。
+        '''
         DB = pd.read_sql("select date,open,high,low,close,volume,code from cnstock.rawdata", self.conn)
         DB['date'] = pd.to_datetime(DB['date'])
         DB.set_index('date',inplace = True)
@@ -106,21 +91,18 @@ class HistoricSQLDataHandler(DataHandler):
             else:
                 comb_index.union(self.symbol_data[s].index)
             self.latest_symbol_data[s] = []
-            self.symbol_data_gen[s] = self.symbol_data[s]. \
+            self.symbol_data[s] = self.symbol_data[s]. \
                                 reindex(index = comb_index, method = 'ffill').iterrows()
                 
     def _get_new_bar(self, symbol):
-        """
-        Returns the latest bar from the data feed.
-        """
-        for b in self.symbol_data_gen[symbol]:
+        '''
+        从generator中获取最新的数据信息。
+        '''
+        for b in self.symbol_data[symbol]:
             yield b
             
     def get_latest_bars(self, symbol, N=1):
-        """
-        Returns the last N bars from the latest_symbol list,
-        or N-k if less available.
-        """
+
         try:
             bars_list = self.latest_symbol_data[symbol]
         except KeyError:
@@ -130,9 +112,7 @@ class HistoricSQLDataHandler(DataHandler):
             return bars_list[-N:]
 
     def get_latest_bar_datetime(self, symbol):
-        """
-        Returns a Python datetime object for the last bar.
-        """
+
         try:
             bars_list = self.latest_symbol_data[symbol]
         except KeyError:
@@ -142,11 +122,7 @@ class HistoricSQLDataHandler(DataHandler):
             return bars_list[-1][0]
     
     def get_latest_bars_values(self, symbol, val_type, N=1):
-        """
-        Returns the last N bar values from the 
-        latest_symbol list, or N-k if less available.
-        :rtype: object
-        """
+
         try:
             bars_list = self.get_latest_bars(symbol, N)
         except KeyError:
@@ -156,10 +132,7 @@ class HistoricSQLDataHandler(DataHandler):
             return np.array([b[1].loc[val_type] for b in bars_list])
 
     def update_bars(self):
-        """
-        Pushes the latest bar to the latest_symbol_data structure
-        for all symbols in the symbol list.
-        """
+
         for s in self.symbol_list:
             try:
                 bar = next(self._get_new_bar(s))
@@ -181,7 +154,6 @@ class TushareDataHandler(DataHandler):
         self.start_date = start_date.strftime('%Y-%m-%d')
         self.end_date = end_date.strftime('%Y-%m-%d')
         self.symbol_data = {}
-        self.symbol_data_gen = {}
         self.latest_symbol_data = {}
         self.continue_backtest = True
     
@@ -199,21 +171,16 @@ class TushareDataHandler(DataHandler):
             else:
                 comb_index.union(self.symbol_data[symbol].index)
             self.latest_symbol_data[symbol] = []
-            self.symbol_data_gen[symbol] = self.symbol_data[symbol]. \
+            self.symbol_data[symbol] = self.symbol_data[symbol]. \
                                 reindex(index = comb_index, method = 'ffill').iterrows()
                                 
     def _get_new_bar(self, symbol):
-        """
-        Returns the latest bar from the data feed.
-        """
-        for b in self.symbol_data_gen[symbol]:
+
+        for b in self.symbol_data[symbol]:
             yield b
             
     def get_latest_bars(self, symbol, N=1):
-        """
-        Returns the last N bars from the latest_symbol list,
-        or N-k if less available.
-        """
+
         try:
             bars_list = self.latest_symbol_data[symbol]
         except KeyError:
@@ -223,9 +190,7 @@ class TushareDataHandler(DataHandler):
             return bars_list[-N:]
 
     def get_latest_bar_datetime(self, symbol):
-        """
-        Returns a Python datetime object for the last bar.
-        """
+
         try:
             bars_list = self.latest_symbol_data[symbol]
         except KeyError:
@@ -235,11 +200,7 @@ class TushareDataHandler(DataHandler):
             return bars_list[-1][0]
     
     def get_latest_bars_values(self, symbol, val_type, N=1):
-        """
-        Returns the last N bar values from the 
-        latest_symbol list, or N-k if less available.
-        :rtype: object
-        """
+
         try:
             bars_list = self.get_latest_bars(symbol, N)
         except KeyError:
@@ -249,10 +210,7 @@ class TushareDataHandler(DataHandler):
             return np.array([b[1].loc[val_type] for b in bars_list])
 
     def update_bars(self):
-        """
-        Pushes the latest bar to the latest_symbol_data structure
-        for all symbols in the symbol list.
-        """
+
         bar = None
         for s in self.symbol_list:
             try:

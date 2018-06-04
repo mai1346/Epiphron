@@ -12,16 +12,25 @@ class Tradelog():
     本类记录所有交易细节，针对每种交易资产记录交易时间、交易价格、交易数量以及每次
     买卖的盈利，并计算交易的胜率，有助于投资者了解每笔交易的详细信息。
     '''
-
     def __init__(self):
+        '''
+        初始化 tradelog 字典，字典元素以symbol为key，对应trade的dataframe为value。
+        '''
         self.columns = ['entry_date', 'entry_price', 'long_short', 'quantity',
                         'exit_date', 'exit_price', 'pl_points', 'pl_cash', 'pl_cumul']
         self._tlog = defaultdict(pd.DataFrame)
 
     def get_Tradelog(self):
+        '''
+        外部获取 tradelog 字典。
+        '''
         return self._tlog
     
     def update(self, event):
+        '''
+        与交易同步更新 tradelog，DataFrame 包括 entry 日期，exit 日期，交易类型（long、short）
+        交易数量，exit 日期，exit 市价，每笔交易盈利以及累计盈利。
+        '''
         if event.type == 'FILL':
             symbol = event.symbol
             if event.fill_type in ('LONG','SHORT'):
@@ -49,29 +58,36 @@ class Tradelog():
                 self._tlog[symbol].loc[idx, 'pl_cumul'] = self._tlog[symbol]['pl_cash'].sum()
     
     def create_trade_summary(self):
-        
+        '''
+        生成 Trade 的统计信息，包括胜率、最大盈利，最大亏损等。
+        '''
         for symbol in self._tlog:
             # 筛选出已经完成的trade，完成的trade为一次开仓和平仓
-            ### TODO 要考虑一次完成的Trade 都没有的情景
             completed_trade = self._tlog[symbol].dropna(how = 'any', axis = 0)
-            win_trades = (completed_trade['pl_cash'] > 0).sum()
-            win_rate = win_trades / len(completed_trade.index)
-            total_profit = completed_trade['pl_cumul'].iloc[-1]
-            Max_trade_profit = completed_trade['pl_cash'].max()
-            Min_trade_profit = completed_trade['pl_cash'].min()
-            Average_trade_profit = total_profit / len(completed_trade.index)
-            bound = '-' * 40
-            stats = "Symbol: %s" \
-                    "\nWinning rate: %0.4f%%" \
-                    "\nTotal Profit: %0.2f" \
-                    "\nMaximum Single Trade Profit: %0.2f" \
-                    "\nMinimum Single Trade Profit: %0.2f" \
-                    "\nAverage Trade Profit: %0.2f" \
-                    "\n%s" % \
-                    (symbol, win_rate * 100, total_profit, Max_trade_profit, 
-                     Min_trade_profit, Average_trade_profit, bound)
-                    
-            print (self._tlog[symbol])
-            print (stats)
+            # 如果没有一次完整的交易，则退出循环。
+            if completed_trade.empty:
+                print ('No trade is complete, please extend the backtest period.')
+                break
+            else:
+                win_trades = (completed_trade['pl_cash'] > 0).sum()
+                win_rate = win_trades / len(completed_trade.index)
+                total_profit = completed_trade['pl_cumul'].iloc[-1]
+                Max_trade_profit = completed_trade['pl_cash'].max()
+                Min_trade_profit = completed_trade['pl_cash'].min()
+                Average_trade_profit = total_profit / len(completed_trade.index)
+                bound = '-' * 40
+                stats = "Symbol: %s" \
+                        "\nWinning rate: %0.4f%%" \
+                        "\nTotal Profit: %0.2f" \
+                        "\nMaximum Single Trade Profit: %0.2f" \
+                        "\nMinimum Single Trade Profit: %0.2f" \
+                        "\nAverage Trade Profit: %0.2f" \
+                        "\n%s" % \
+                        (symbol, win_rate * 100, total_profit, Max_trade_profit, 
+                         Min_trade_profit, Average_trade_profit, bound)
+                        
+                print (self._tlog[symbol])
+                print (stats)
+
             
                         

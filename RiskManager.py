@@ -10,8 +10,9 @@ from abc import ABC, abstractmethod
 
 
 class RiskManager(ABC):
-    
-    
+    '''
+    所有riskmanager的父类。
+    '''
     @abstractmethod
     def generate_order(self, signal):
         
@@ -24,21 +25,14 @@ class RiskManager(ABC):
 
 class Naive_Riskmanager(RiskManager):
     '''
+    简单的riskmanager，不包含任何风控，生成固定quantity的order事件。
     '''
     def __init__(self, events, portfolio):
-        '''
-        '''
+
         self.events = events
         self.portfolio = portfolio
     def generate_order(self, signal):
-        """
-        Simply files an Order object as a constant quantity
-        sizing of the signal object, without risk management or
-        position sizing considerations.
-    
-        Parameters:
-        signal - The tuple containing Signal information.
-        """
+
         order = None
     
         symbol = signal.symbol
@@ -58,12 +52,12 @@ class Naive_Riskmanager(RiskManager):
             order = OrderEvent(datetime, symbol, direction, abs(cur_quantity), 'SELL')
         if direction == 'EXIT' and cur_quantity < 0:
             order = OrderEvent(datetime, symbol, direction, abs(cur_quantity), 'BUY')
-        return order    
+        return order  
+    
     def update_signal(self, event):
-        """
-        Acts on a SignalEvent to generate new orders
-        based on the portfolio logic.
-        """
+        '''
+        生成order事件。
+        '''
         if event.type == 'SIGNAL':
             order_event = self.generate_order(event)
             self.events.put(order_event)

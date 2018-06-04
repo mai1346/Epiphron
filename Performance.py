@@ -11,64 +11,43 @@ import tushare as ts
 
 
 def calSharpe(returns, risk_free = 0, periods = 252):
-    """
-    Create the Sharpe ratio for the strategy, based on a 
-    benchmark of zero (i.e. no risk-free rate information).
-
-    args:
-        returns - A pandas Series representing period percentage returns.
-        periods - Daily (252), Hourly (252*6.5), Minutely(252*6.5*60) etc.
-    returns:
-        the sharpe ratio based on period chosen
-    """
+    '''
+    计算sharpe比率，默认为日sharpe 比率的年化，risk free rate 为 0。
+    '''
     return (periods * returns.mean() - risk_free) / (returns.std() * np.sqrt(periods))
 
 def calSortino(returns, risk_free = 0, periods = 252):
     '''
+    计算sortino 比率
     '''
     deviation = returns[returns < 0].std()
     return (periods * returns.mean() - risk_free) / (deviation * np.sqrt(periods))
     
 
 def calDrawdown(equity):
-    """
-    args:
-        equity: a panda series represents the equity of a specific asset.
-    returns:
-        Max drawdown
-        Calendar duration of the max drawdown
-    """
+    '''
+    计算策略回撤和最大回撤
+    '''
     drawdown = equity/equity.cummax()-1
     maxdrawdown = drawdown.min() #the value of maxdrawdown
-#    end = drawdown.idxmin()# find the date of maxdrawdown
-#    start = equity[:end].idxmax() # find the starting date of maxdrawdown
-#    duration = end - start # calendar duration of the maxdrawdown
     
     return drawdown, maxdrawdown
 
 
 def create_equity_curve_dataframe(all_holdings):
-    """
-    Creates a pandas DataFrame from the all_holdings
-    list of dictionaries.
-    """
+    '''
+    生成portfolio的资金曲线
+    '''
     df = pd.DataFrame(all_holdings)
     df.set_index('datetime', inplace=True)
     df['equity_returns'] = df['total'].pct_change()
     df['equity_curve'] = (1.0 + df['equity_returns']).cumprod()
     return df
 
-def benchmark_dataframe(symbol, start, end):
+def create_benchmark_dataframe(symbol, start, end):
     '''
+    生成基准的资金曲线
     '''    
-#    if benchtype == 'BuyAndHold':
-#        bench_dict = {}
-#        for symbol in symbol_list:
-#            bench_dict[symbol] = ts.get_k_data(symbol,start)
-#            bench_dict[symbol]['date'] = pd.to_datetime(bench_dict[symbol]['date'])
-#            bench_dict[symbol].set_index('date', inplace = True)
-#        bench = sum([bench_dict[symbol]['close'] for symbol in symbol_list])
-        # 
     start = start.strftime('%Y-%m-%d')
     end = end.strftime('%Y-%m-%d')
     bench = ts.get_k_data(symbol, start, end)
@@ -79,10 +58,21 @@ def benchmark_dataframe(symbol, start, end):
     
     return bench[['bench_returns','bench_curve']]
 
+def create_trade_plot_dataframe(symbol_list, data_handler):
+    '''
+    生成用于trade plot的symbol 市价信息
+    '''
+    symbol_data ={}
+    for symbol in symbol_list:
+        data = [x[1] for x in data_handler.get_latest_bars(symbol,0)]
+        idx = [x[0] for x in data_handler.get_latest_bars(symbol,0)]
+        symbol_data[symbol] = pd.DataFrame(data, index = idx) 
+    return symbol_data
+
 def output_summary_stats(df, bench):
-    """
-	 Creates a list of summary statistics for the portfolio.
-	 """
+    '''
+    生成策略Performance信息。
+    '''
     strategy_total_return = df['equity_curve'].iloc[-1]
     strategy_returns = df['equity_returns']
     strategy_equity = df['equity_curve']
@@ -96,8 +86,6 @@ def output_summary_stats(df, bench):
     bench_sharpe_ratio = calSharpe(bench_returns)
     bench_sortino = calSortino(bench_returns)
     bench_drawdown, bench_max_dd = calDrawdown(bench_equity)
-
-
 
     stats = "Strategy Total Return: %0.4f%%" \
             "\nStrategy Sharpe Ratio: %0.4f" \

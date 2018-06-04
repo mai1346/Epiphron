@@ -5,7 +5,6 @@ Created on Fri May 18 21:41:19 2018
 @author: mai1346
 """
 
-import datetime
 import queue
 import time
 import pandas as pd
@@ -13,29 +12,27 @@ import Performance as pf
 import Plot
 
 class Backtest(object):
-    """
-    Enscapsulates the settings and components for carrying out
-    an event-driven backtest.
-    """
-
+    '''
+    回测类，
+    '''
     def __init__(
         self, symbol_list, initial_capital,
         heartbeat, start_date, end_date, data_handler, 
         execution_handler, portfolio, risk_manager, strategy, benchmark
         ):
-        """
-        Initialises the backtest.
+        '''
+        初始化回测，
 
-        args:
-        symbol_list - The list of symbol strings.
-        intial_capital - The starting capital for the portfolio.
-        heartbeat - Backtest "heartbeat" in seconds
-        start_date - The start datetime of the strategy.
-        data_handler - (Class) Handles the market data feed.
-        execution_handler - (Class) Handles the orders/fills for trades.
-        portfolio - (Class) Keeps track of portfolio current and prior positions.
-        strategy - (Class) Generates signals based on market data.
-        """
+        symbol_list - 应用策略的标的资产列表
+        intial_capital - 初始资金
+        heartbeat - 等待间隔，回测中默认为0，实盘系统则按需求进行调整
+        start_date - 回测开始日期
+        end_date - 回测结束日期
+        data_handler - 数据源类
+        execution_handler - 执行类
+        portfolio - Portfolio类
+        strategy - 策略类
+        '''
         self.symbol_list = symbol_list
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
@@ -59,10 +56,9 @@ class Backtest(object):
         self._generate_trading_instances()
 
     def _generate_trading_instances(self):
-        """
-        Generates the trading instance objects from 
-        their class types.
-        """
+        '''
+        根据输入信息实例化所有类
+        '''
         print(
             "Creating DataHandler, Strategy, Portfolio and ExecutionHandler"
         )
@@ -75,9 +71,9 @@ class Backtest(object):
         self.risk_manager = self.risk_manager_cls(self.events, self.portfolio)
 
     def _run_backtest(self):
-        """
-        Executes the backtest.
-        """
+        '''
+        回测主循环
+        '''
             # Handle the events
         while True:
             try:
@@ -108,35 +104,35 @@ class Backtest(object):
         time.sleep(self.heartbeat)
 
     def _output_performance(self):
-        """
-        Outputs the strategy performance from the backtest.
-        """
+        '''
+        输出所有Performance
+        '''
+        print ("Creating equity curve...")
         df= pf.create_equity_curve_dataframe(self.portfolio.all_holdings)
         print (df.tail(10))
-        bench = pf.benchmark_dataframe(self.benchmark, self.start_date, self.end_date)
+        bench = pf.create_benchmark_dataframe(self.benchmark, self.start_date, self.end_date)
         print ("Creating summary stats...")
         stats, strategy_drawdown, bench_drawdown = pf.output_summary_stats(df, bench)
-        
-        output_df = pd.DataFrame({'strategy_equity':df['equity_curve'], 'bench_equity':bench['bench_curve'],
-                                  'strategy_drawdown':strategy_drawdown, 'bench_drawdown':bench_drawdown}
-                                )
-        output_df.fillna(method = 'ffill', inplace = True)
-
-        print ("Creating equity curve...")
-        print (Plot.plot_equity_performance(output_df))
         print (stats)
         print ("Signals: %s" % self.signals)
         print ("Orders: %s" % self.orders)
         print ("Fills: %s" % self.fills)
         
-        print ("Creating trade statistic")
+        output_df = pd.DataFrame({'strategy_equity':df['equity_curve'], 'bench_equity':bench['bench_curve'],
+                                  'strategy_drawdown':strategy_drawdown, 'bench_drawdown':bench_drawdown})
+        output_df.fillna(method = 'ffill', inplace = True)
+        Plot.plot_equity_performance(output_df)
+        
+        print ("Creating trade statistics...")
         trade_log = self.portfolio.Tradelog        
         trade_log.create_trade_summary()
-        print (Plot.plot_trade(trade_log.get_Tradelog(), self.data_handler.symbol_data))
+        
+        trade_plot_data = pf.create_trade_plot_dataframe(self.symbol_list, self.data_handler)
+        Plot.plot_trade(trade_log.get_Tradelog(), trade_plot_data)
 
     def simulate_trading(self):
-        """
-        Simulates the backtest and outputs portfolio performance.
-        """
+        '''
+        进行模拟回测
+        '''
         self._run_backtest()
         self._output_performance()
