@@ -23,6 +23,24 @@ def calSortino(returns, risk_free = 0, periods = 252):
     deviation = returns[returns < 0].std()
     return (periods * returns.mean() - risk_free) / (deviation * np.sqrt(periods))
     
+def calTreynor(strategy_returns, bench_returns, risk_free = 0, periods = 252):
+    '''
+    计算Treynor 比率
+    '''
+    df = pd.DataFrame({'strategy_returns':strategy_returns, 'bench_returns':bench_returns}).dropna()
+    cov_mat = np.cov(df['strategy_returns'], df['bench_returns'])
+#    print (cov_mat, cov_mat[0,1], cov_mat[1,1])
+    beta = cov_mat[0,1] / cov_mat[1,1]
+    alpha = df['strategy_returns'].mean()-beta * df['bench_returns'].mean()
+    treynor = (periods * df['strategy_returns'].mean() - risk_free) / (beta * np.sqrt(periods))
+    return treynor, beta, alpha * periods
+
+def calIR(strategy_returns, bench_returns, periods = 252):
+    '''
+    计算Information Ratio
+    '''
+    diff = strategy_returns - bench_returns   
+    return periods * diff.mean() / (diff.std() * np.sqrt(periods))
 
 def calDrawdown(equity):
     '''
@@ -78,6 +96,7 @@ def output_summary_stats(df, bench):
     strategy_equity = df['equity_curve']
     strategy_sharpe_ratio = calSharpe(strategy_returns)
     strategy_sortino = calSortino(strategy_returns)
+
     strategy_drawdown, strategy_max_dd = calDrawdown(strategy_equity)
     
     bench_total_return = bench['bench_curve'].iloc[-1]
@@ -87,19 +106,29 @@ def output_summary_stats(df, bench):
     bench_sortino = calSortino(bench_returns)
     bench_drawdown, bench_max_dd = calDrawdown(bench_equity)
 
+    strategy_treynor, beta, alpha = calTreynor(strategy_returns, bench_returns)
+
+    strategy_ir = calIR(strategy_returns, bench_returns)
     stats = "Strategy Total Return: %0.4f%%" \
             "\nStrategy Sharpe Ratio: %0.4f" \
             "\nStrategy Sortino Ratio: %0.4f" \
+            "\nStrategy Treynor Ratio: %0.4f" \
+            "\nStrategy Information Ratio: %0.4f" \
+            "\nStrategy beta: %0.4f" \
+            "\nStrategy alpha: %0.4f" \
             "\nStrategy Max Drawdown: %0.4f%%" \
             "\nBenchmark Total Return: %0.4f%%" \
             "\nBenchmark Sharpe Ratio: %0.4f" \
             "\nBenchmark Sortino Ratio: %0.4f" \
             "\nBenchmark Max Drawdown: %0.4f%%" % \
-            ((strategy_total_return - 1.0) * 100, strategy_sharpe_ratio, strategy_sortino, strategy_max_dd * 100.0,
+            ((strategy_total_return - 1.0) * 100, strategy_sharpe_ratio, strategy_sortino,
+             strategy_treynor, strategy_ir, beta, alpha, strategy_max_dd * 100.0,
              (bench_total_return - 1.0) * 100, bench_sharpe_ratio, bench_sortino, bench_max_dd * 100.0)
 
     return stats, strategy_drawdown, bench_drawdown
 
-
+#            "\nStrategy Treynor Ratio: %0.4f" \
+#            "\nStrategy Information Ratio: %0.4f" \
+ #
             
         

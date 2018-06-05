@@ -107,7 +107,7 @@ class Portfolio(object):
             self._update_tradelog_from_fill(event)
 
     def update_timeindex(self):
-
+        
         latest_datetime = self.data_handler.get_latest_bar_datetime(self.symbol_list[0])
 
         positions = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])

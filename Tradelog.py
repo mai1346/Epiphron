@@ -80,8 +80,8 @@ class Tradelog():
                 stats = "Symbol: %s" \
                         "\nWinning rate: %0.4f%%" \
                         "\nTotal Profit: %0.2f" \
-                        "\nMaximum Single Trade Profit: %0.2f" \
-                        "\nMinimum Single Trade Profit: %0.2f" \
+                        "\nBest Single Trade Profit: %0.2f" \
+                        "\nWorst Single Trade Profit: %0.2f" \
                         "\nAverage Trade Profit: %0.2f" \
                         "\n%s" % \
                         (symbol, win_rate * 100, total_profit, Max_trade_profit, 

@@ -61,7 +61,8 @@ class HistoricSQLDataHandler(DataHandler):
         self.symbol_list = symbol_list
         self.symbol_data = {}
         self.latest_symbol_data = {}
-        self.continue_backtest = True       
+        self.continue_backtest = True
+        self.continue_iteration = {}
         
         self._loaddata()
 
@@ -91,6 +92,8 @@ class HistoricSQLDataHandler(DataHandler):
             else:
                 comb_index.union(self.symbol_data[s].index)
             self.latest_symbol_data[s] = []
+            self.continue_iteration[s] = True
+        for s in self.symbol_list:
             self.symbol_data[s] = self.symbol_data[s]. \
                                 reindex(index = comb_index, method = 'ffill').iterrows()
                 
@@ -135,13 +138,14 @@ class HistoricSQLDataHandler(DataHandler):
 
         for s in self.symbol_list:
             try:
-                bar = next(self._get_new_bar(s))
-#                print(bar)
-            except StopIteration:
-                self.continue_backtest = False
-            else:
+                bar = next(self._get_new_bar(s))                
                 if bar is not None:
                     self.latest_symbol_data[s].append(bar)
+            except StopIteration:
+                self.continue_iteration[s] = False
+                if all(value == False for value in self.continue_iteration.values()):
+                    self.continue_backtest = False
+
         self.events.put(MarketEvent())
 
 
@@ -156,7 +160,7 @@ class TushareDataHandler(DataHandler):
         self.symbol_data = {}
         self.latest_symbol_data = {}
         self.continue_backtest = True
-    
+        self.continue_iteration = {}    
         self._getdata()
     
     def _getdata(self):
@@ -169,10 +173,12 @@ class TushareDataHandler(DataHandler):
             if comb_index is None:
                 comb_index = self.symbol_data[symbol].index
             else:
-                comb_index.union(self.symbol_data[symbol].index)
+                comb_index = comb_index.union(self.symbol_data[symbol].index)
             self.latest_symbol_data[symbol] = []
+            self.continue_iteration[symbol] = True   
+        for symbol in self.symbol_list:
             self.symbol_data[symbol] = self.symbol_data[symbol]. \
-                                reindex(index = comb_index, method = 'ffill').iterrows()
+            reindex(index = comb_index, method = 'ffill').iterrows()
                                 
     def _get_new_bar(self, symbol):
 
@@ -211,14 +217,16 @@ class TushareDataHandler(DataHandler):
 
     def update_bars(self):
 
-        bar = None
+        
         for s in self.symbol_list:
             try:
                 bar = next(self._get_new_bar(s))
                 if bar is not None:
                     self.latest_symbol_data[s].append(bar)
             except StopIteration:
-                self.continue_backtest = False
+                self.continue_iteration[s] = False
+                if all(value == False for value in self.continue_iteration.values()):
+                    self.continue_backtest = False
 
         self.events.put(MarketEvent())
         
