@@ -64,7 +64,7 @@ class EMACrossStrategy(Strategy):
                             self.bought[symbol] = 'OUT'
 
 if __name__ == "__main__":
-    symbol_list = ['600050','600233']
+    symbol_list = ['600050']
     initial_capital = 100000.0
     start_date = datetime.datetime(2015,1,1,0,0,0)
     end_date = datetime.datetime(2017,5,10,0,0,0)

@@ -54,9 +54,9 @@ class Backtest(object):
         self.fills = 0
         self.num_strats = 1
        
-        self._generate_trading_instances()
+        self._create_trading_instances()
 
-    def _generate_trading_instances(self):
+    def _create_trading_instances(self):
         '''
         根据输入信息实例化所有类
         '''
@@ -69,7 +69,7 @@ class Backtest(object):
         self.portfolio = self.portfolio_cls(self.data_handler, self.events, self.start_date, 
                                             self.initial_capital)
         self.execution_handler = self.execution_handler_cls(self.events, self.data_handler)
-        self.risk_manager = self.risk_manager_cls(self.events, self.portfolio)
+        self.risk_manager = self.risk_manager_cls(self.events, self.portfolio, self.data_handler)
 
     def _run_backtest(self):
         '''
@@ -110,7 +110,7 @@ class Backtest(object):
         '''
         print ("Creating equity curve...")
         df= pf.create_equity_curve_dataframe(self.portfolio.all_holdings)
-        print (df.tail(10))
+        print (df.head(40))
         bench = pf.create_benchmark_dataframe(self.benchmark, self.start_date, self.end_date)
         print ("Creating summary stats...")
         stats, strategy_drawdown, bench_drawdown = pf.output_summary_stats(df, bench)
